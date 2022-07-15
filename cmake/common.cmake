@@ -193,13 +193,12 @@ include(${CCF_DIR}/cmake/nghttp2.cmake)
 # Unit test wrapper
 function(add_unit_test name)
   add_executable(${name} ${CCF_DIR}/src/enclave/thread_local.cpp ${ARGN})
-  target_compile_options(${name} PRIVATE ${COMPILE_LIBCXX})
   target_include_directories(
     ${name} PRIVATE src ${CCFCRYPTO_INC} ${CCF_DIR}/3rdparty/test
   )
   enable_coverage(${name})
   target_link_libraries(
-    ${name} PRIVATE ${LINK_LIBCXX} ccfcrypto.host openenclave::oehost
+    ${name} PRIVATE ccf_host_build_options ccfcrypto.host openenclave::oehost
   )
   add_san(${name})
 
@@ -214,10 +213,9 @@ endfunction()
 # Test binary wrapper
 function(add_test_bin name)
   add_executable(${name} ${CCF_DIR}/src/enclave/thread_local.cpp ${ARGN})
-  target_compile_options(${name} PRIVATE ${COMPILE_LIBCXX})
   target_include_directories(${name} PRIVATE src ${CCFCRYPTO_INC})
   enable_coverage(${name})
-  target_link_libraries(${name} PRIVATE ${LINK_LIBCXX} ccfcrypto.host)
+  target_link_libraries(${name} PRIVATE ccf_host_build_options ccfcrypto.host)
   add_san(${name})
 endfunction()
 
@@ -246,7 +244,6 @@ add_warning_checks(cchost)
 add_san(cchost)
 enable_quote_code(cchost)
 
-target_compile_options(cchost PRIVATE ${COMPILE_LIBCXX})
 target_include_directories(cchost PRIVATE ${CCF_GENERATED_DIR})
 
 # Host is always built with verbose logging enabled, regardless of CMake option
@@ -267,7 +264,7 @@ target_link_libraries(
           ${TLS_LIBRARY}
           ${CMAKE_DL_LIBS}
           ${CMAKE_THREAD_LIBS_INIT}
-          ${LINK_LIBCXX}
+          ccf_host_build_options
           ccfcrypto.host
 )
 if("sgx" IN_LIST COMPILE_TARGETS)
@@ -280,17 +277,10 @@ install(TARGETS cchost DESTINATION bin)
 add_executable(
   scenario_perf_client ${CCF_DIR}/src/clients/perf/scenario_perf_client.cpp
 )
-if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
-  target_link_libraries(
-    scenario_perf_client PRIVATE ${CMAKE_THREAD_LIBS_INIT} http_parser.host
-                                 ccfcrypto.host
-  )
-else()
-  target_link_libraries(
-    scenario_perf_client PRIVATE ${CMAKE_THREAD_LIBS_INIT} http_parser.host
-                                 ccfcrypto.host c++fs
-  )
-endif()
+target_link_libraries(
+  scenario_perf_client PRIVATE ${CMAKE_THREAD_LIBS_INIT} ccf_host_build_options
+                               http_parser.host ccfcrypto.host
+)
 install(TARGETS scenario_perf_client DESTINATION bin)
 
 # HTTP parser
@@ -468,7 +458,8 @@ function(add_client_exe name)
   add_executable(${name} ${PARSED_ARGS_SRCS})
 
   target_link_libraries(
-    ${name} PRIVATE ${CMAKE_THREAD_LIBS_INIT} ccfcrypto.host
+    ${name} PRIVATE ${CMAKE_THREAD_LIBS_INIT} ccf_host_build_options
+                    ccfcrypto.host
   )
   target_include_directories(
     ${name} PRIVATE ${CCF_DIR}/src/clients/perf ${PARSED_ARGS_INCLUDE_DIRS}
@@ -667,8 +658,8 @@ function(add_picobench name)
   target_include_directories(${name} PRIVATE src ${PARSED_ARGS_INCLUDE_DIRS})
 
   target_link_libraries(
-    ${name} PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${PARSED_ARGS_LINK_LIBS}
-                    ccfcrypto.host
+    ${name} PRIVATE ${CMAKE_THREAD_LIBS_INIT} ccf_host_build_options
+                    ${PARSED_ARGS_LINK_LIBS} ccfcrypto.host
   )
 
   # -Wall -Werror catches a number of warnings in picobench

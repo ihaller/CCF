@@ -129,7 +129,6 @@ if("virtual" IN_LIST COMPILE_TARGETS)
                        _LIBCPP_HAS_THREAD_API_PTHREAD
   )
 
-  target_compile_options(ccf.virtual PUBLIC ${COMPILE_LIBCXX})
   add_warning_checks(ccf.virtual)
 
   target_include_directories(
@@ -145,8 +144,7 @@ if("virtual" IN_LIST COMPILE_TARGETS)
 
   target_link_libraries(
     ccf.virtual
-    PUBLIC ${LINK_LIBCXX}
-           -lgcc
+    PUBLIC ccf_host_build_options
            ccfcrypto.host
            http_parser.host
            quickjs.host
@@ -300,33 +298,27 @@ if(BUILD_TESTS)
       ${CMAKE_CURRENT_SOURCE_DIR}/src/consensus/aft/test/view_history.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/src/consensus/aft/test/committable_suffix.cpp
     )
-    target_link_libraries(raft_test PRIVATE ccfcrypto.host)
 
     add_unit_test(
       raft_enclave_test
       ${CMAKE_CURRENT_SOURCE_DIR}/src/consensus/aft/test/enclave.cpp
     )
     target_include_directories(raft_enclave_test PRIVATE ${CCFCRYPTO_INC})
-    target_link_libraries(raft_enclave_test PRIVATE ccfcrypto.host)
 
     add_unit_test(
       crypto_test ${CMAKE_CURRENT_SOURCE_DIR}/src/crypto/test/crypto.cpp
     )
     target_include_directories(crypto_test PRIVATE ${CCFCRYPTO_INC})
-    target_link_libraries(crypto_test PRIVATE ccfcrypto.host)
 
     add_unit_test(
       key_exchange_test
       ${CMAKE_CURRENT_SOURCE_DIR}/src/crypto/test/key_exchange.cpp
     )
-    target_link_libraries(key_exchange_test PRIVATE)
 
     add_unit_test(
       history_test ${CMAKE_CURRENT_SOURCE_DIR}/src/node/test/history.cpp
     )
-    target_link_libraries(
-      history_test PRIVATE ccfcrypto.host http_parser.host ccf_kv.host
-    )
+    target_link_libraries(history_test PRIVATE http_parser.host ccf_kv.host)
 
     add_unit_test(
       secret_sharing_test
@@ -337,7 +329,7 @@ if(BUILD_TESTS)
     add_unit_test(
       encryptor_test ${CMAKE_CURRENT_SOURCE_DIR}/src/node/test/encryptor.cpp
     )
-    target_link_libraries(encryptor_test PRIVATE ccfcrypto.host ccf_kv.host)
+    target_link_libraries(encryptor_test PRIVATE ccf_kv.host)
 
     add_unit_test(js_test ${CMAKE_CURRENT_SOURCE_DIR}/src/js/test/js.cpp)
     target_link_libraries(
@@ -453,16 +445,18 @@ if(BUILD_TESTS)
 
     # Merkle Tree memory test
     add_executable(merkle_mem src/node/test/merkle_mem.cpp)
-    target_compile_options(merkle_mem PRIVATE ${COMPILE_LIBCXX})
     target_link_libraries(
-      merkle_mem PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${LINK_LIBCXX} crypto
+      merkle_mem PRIVATE ${CMAKE_THREAD_LIBS_INIT} ccf_host_build_options
+                         crypto
     )
 
     # Raft driver and scenario test
     add_executable(
       raft_driver ${CMAKE_CURRENT_SOURCE_DIR}/src/consensus/aft/test/driver.cpp
     )
-    target_link_libraries(raft_driver PRIVATE ccfcrypto.host)
+    target_link_libraries(
+      raft_driver PRIVATE ccf_host_build_options ccfcrypto.host
+    )
     target_include_directories(raft_driver PRIVATE src/aft)
 
     add_test(

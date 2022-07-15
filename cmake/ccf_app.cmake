@@ -68,12 +68,32 @@ if(LVI_MITIGATIONS)
   )
 endif()
 
-list(APPEND COMPILE_LIBCXX -stdlib=libc++)
-if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
-  list(APPEND LINK_LIBCXX -lc++ -lc++abi -stdlib=libc++)
-else()
-  # Clang <9 needs to link libc++fs when using <filesystem>
-  list(APPEND LINK_LIBCXX -lc++ -lc++abi -lc++fs -stdlib=libc++)
+# Interface library that allow a parent project to inject build options
+# correctly into the CCF build They are also used internally to track
+# CCF-specific options in a CMake-style
+add_library(ccf_host_build_options INTERFACE)
+# Virtual inherits everything from host
+install(
+  TARGETS ccf_host_build_options
+  EXPORT ccf
+  DESTINATION lib
+)
+
+# COMPILE_LIBCXX and LINK_LIBCXX options on the command line can still be used
+# to inject options
+target_compile_options(ccf_host_build_options INTERFACE ${COMPILE_LIBCXX})
+target_link_options(ccf_host_build_options INTERFACE ${LINK_LIBCXX})
+
+target_link_libraries(ccf_host_build_options INTERFACE -lgcc)
+
+# Use libc++ instead of libstdc++
+target_compile_options(ccf_host_build_options INTERFACE -stdlib=libc++)
+target_link_options(
+  ccf_host_build_options INTERFACE -lc++ -lc++abi -stdlib=libc++
+)
+# Clang <=9 needs to link libc++fs when using <filesystem>
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 9)
+  target_link_options(ccf_host_build_options INTERFACE -lc++fs)
 endif()
 
 # Sign a built enclave library with oesign
@@ -246,7 +266,8 @@ function(add_host_library name)
   cmake_parse_arguments(PARSE_ARGV 1 PARSED_ARGS "" "" "")
   set(files ${PARSED_ARGS_UNPARSED_ARGUMENTS})
   add_library(${name} ${files})
-  target_compile_options(${name} PUBLIC ${COMPILE_LIBCXX})
-  target_link_libraries(${name} PUBLIC ${LINK_LIBCXX} -lgcc openenclave::oehost)
+  target_link_libraries(
+    ${name} PUBLIC ccf_host_build_options openenclave::oehost
+  )
   set_property(TARGET ${name} PROPERTY POSITION_INDEPENDENT_CODE ON)
 endfunction()
